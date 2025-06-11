@@ -2,6 +2,24 @@ export class StarFactory {
     constructor(scene) {
         this.scene = scene;
         this.starPositions = [];
+        this._initializeShaders();
+    }
+
+    _initializeShaders() {
+        // Register the star shaders in Babylon's ShaderStore
+        if (!BABYLON.Effect.ShadersStore["starVertexShader"]) {
+            // Get vertex shader
+            const xhr1 = new XMLHttpRequest();
+            xhr1.open('GET', 'shaders/star.vertex.glsl', false);  // Synchronous for simplicity
+            xhr1.send();
+            BABYLON.Effect.ShadersStore["starVertexShader"] = xhr1.responseText;
+
+            // Get fragment shader
+            const xhr2 = new XMLHttpRequest();
+            xhr2.open('GET', 'shaders/star.fragment.glsl', false);
+            xhr2.send();
+            BABYLON.Effect.ShadersStore["starFragmentShader"] = xhr2.responseText;
+        }
     }
 
     randomColor() {
