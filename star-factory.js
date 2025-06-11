@@ -10,17 +10,31 @@ export class StarFactory {
             try {
                 // Load both shaders in parallel
                 const [vertexResponse, fragmentResponse] = await Promise.all([
-                    fetch('shaders/star.vertex.glsl'),
-                    fetch('shaders/star.fragment.glsl')
+                    fetch('/shaders/star.vertex.glsl').catch(() => fetch('./shaders/star.vertex.glsl')),
+                    fetch('/shaders/star.fragment.glsl').catch(() => fetch('./shaders/star.fragment.glsl'))
                 ]);
+
+                // Check responses
+                if (!vertexResponse.ok || !fragmentResponse.ok) {
+                    throw new Error('Failed to load shaders: ' + 
+                        (!vertexResponse.ok ? 'vertex shader ' + vertexResponse.status : '') +
+                        (!fragmentResponse.ok ? 'fragment shader ' + fragmentResponse.status : '')
+                    );
+                }
 
                 // Get shader texts
                 const vertexShader = await vertexResponse.text();
                 const fragmentShader = await fragmentResponse.text();
 
+                if (!vertexShader || !fragmentShader) {
+                    throw new Error('Empty shader content received');
+                }
+
                 // Register shaders
                 BABYLON.Effect.ShadersStore["starVertexShader"] = vertexShader;
                 BABYLON.Effect.ShadersStore["starFragmentShader"] = fragmentShader;
+                
+                console.log('Shaders loaded successfully');
 
                 return true;
             } catch (error) {
