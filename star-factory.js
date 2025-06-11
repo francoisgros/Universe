@@ -2,24 +2,33 @@ export class StarFactory {
     constructor(scene) {
         this.scene = scene;
         this.starPositions = [];
-        this._initializeShaders();
+        this.ready = this._initializeShaders();
     }
 
-    _initializeShaders() {
-        // Register the star shaders in Babylon's ShaderStore
+    async _initializeShaders() {
         if (!BABYLON.Effect.ShadersStore["starVertexShader"]) {
-            // Get vertex shader
-            const xhr1 = new XMLHttpRequest();
-            xhr1.open('GET', 'shaders/star.vertex.glsl', false);  // Synchronous for simplicity
-            xhr1.send();
-            BABYLON.Effect.ShadersStore["starVertexShader"] = xhr1.responseText;
+            try {
+                // Load both shaders in parallel
+                const [vertexResponse, fragmentResponse] = await Promise.all([
+                    fetch('shaders/star.vertex.glsl'),
+                    fetch('shaders/star.fragment.glsl')
+                ]);
 
-            // Get fragment shader
-            const xhr2 = new XMLHttpRequest();
-            xhr2.open('GET', 'shaders/star.fragment.glsl', false);
-            xhr2.send();
-            BABYLON.Effect.ShadersStore["starFragmentShader"] = xhr2.responseText;
+                // Get shader texts
+                const vertexShader = await vertexResponse.text();
+                const fragmentShader = await fragmentResponse.text();
+
+                // Register shaders
+                BABYLON.Effect.ShadersStore["starVertexShader"] = vertexShader;
+                BABYLON.Effect.ShadersStore["starFragmentShader"] = fragmentShader;
+
+                return true;
+            } catch (error) {
+                console.error('Failed to load shaders:', error);
+                return false;
+            }
         }
+        return true;
     }
 
     randomColor() {
@@ -142,7 +151,10 @@ export class StarFactory {
         return star;
     }
 
-    generateGalaxy(count = 10000) {
+    async generateGalaxy(count = 10000) {
+        // Wait for shaders to be loaded
+        await this.ready;
+        
         const stars = [];
         for (let i = 0; i < count; i++) {
             stars.push(this.createStar());

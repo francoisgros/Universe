@@ -65,9 +65,9 @@ class UniverseScene {
         return scene;
     }
     
-    generateStars(scene) {
+    async generateStars(scene) {
         const starFactory = new StarFactory(scene);
-        const stars = starFactory.generateGalaxy(10000);
+        const stars = await starFactory.generateGalaxy(10000);
         starFactory.adjustPositionsByGravity(stars);
     }
 }
