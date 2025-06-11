@@ -5,10 +5,10 @@ export class StarFactory {
     }
 
     randomColor() {
-        const h = Math.random();
-        const s = 0.7 + 0.3 * Math.random();
-        const l = 0.5 + 0.2 * (Math.random() - 0.5);
-        return BABYLON.Color3.FromHSL(h, s, l);
+        const h = Math.random();  // 0 to 1
+        const s = 0.7 + 0.3 * Math.random();  // 0.7 to 1.0 for vivid colors
+        const v = 0.8 + 0.2 * Math.random();  // 0.8 to 1.0 for bright stars
+        return BABYLON.Color3.FromHSV(h, s, v);
     }
 
     generateStarPosition(options = {}) {
