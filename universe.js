@@ -1,21 +1,13 @@
 import { StarMaterial } from './shaders/starMaterial.js';
 import { StarHUD } from './StarHUD.js';
 import { StarInteraction } from './StarInteraction.js';
+import { StarFactory } from './star-factory.js';
 
 class UniverseScene {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
         this.engine = new BABYLON.Engine(this.canvas, true);
         this.scene = this.createScene();
-        
-        // Initialize star HUD and interaction
-        this.starHUD = new StarHUD(this.scene, this.camera);
-        this.starInteraction = new StarInteraction(this.scene, this.camera, {
-            maxSpeed: 25,
-            acceleration: 10,
-            decelDistance: 20,
-            minDistance: 0.5
-        });
         
         // Start rendering loop
         this.engine.runRenderLoop(() => {
@@ -63,11 +55,9 @@ class UniverseScene {
         pipeline.bloomWeight = 2.0;
         pipeline.bloomKernel = 64;
         
-        // Create cursor controller
-        this.cursor = new CursorController(scene, this.camera);
-        
-        // Setup star interaction
-        this.setupStarInteraction(scene);
+        // Initialize star systems
+        this.starHUD = new StarHUD(scene, this.camera);
+        this.starInteraction = new StarInteraction(scene, this.camera);
         
         // Generate stars
         this.generateStars(scene);
@@ -79,143 +69,6 @@ class UniverseScene {
         const starFactory = new StarFactory(scene);
         const stars = starFactory.generateGalaxy(10000);
         starFactory.adjustPositionsByGravity(stars);
-    }
-    
-    createStar(scene) {
-        const starName = this.generateStarName();
-        const sphere = BABYLON.MeshBuilder.CreateSphere(
-            starName,
-            { segments: 32, diameter: 1 },
-            scene
-        );
-        
-        const material = new StarMaterial(scene, {
-            colors: [
-                this.randomStarColor(),
-                this.randomStarColor(),
-                this.randomStarColor()
-            ],
-            colorSpeed: 0.2 + Math.random() * 1.2,
-            pattern: 8 + Math.random() * 12
-        }).getMaterial();
-        
-        sphere.material = material;
-        sphere.metadata = {
-            name: starName,
-            type: 'star',
-            colorSpeed: material.colorSpeed,
-            pattern: material.pattern
-        };
-        
-        return sphere;
-    }
-    
-    setupStarInteraction(scene) {
-        let selectedMesh = null;
-        let hoveredMesh = null;
-        
-        scene.onPointerMove = (evt, pickResult) => {
-            if (pickResult.hit) {
-                const mesh = pickResult.pickedMesh;
-                if (mesh && mesh.metadata) {
-                    if (hoveredMesh !== mesh) {
-                        hoveredMesh = mesh;
-                        this.updateHUD(mesh, pickResult.distance);
-                    }
-                }
-            } else {
-                hoveredMesh = null;
-                this.clearHUD();
-            }
-        };
-        
-        scene.onPointerDown = (evt, pickResult) => {
-            if (pickResult.hit) {
-                const mesh = pickResult.pickedMesh;
-                if (mesh && mesh.metadata) {
-                    selectedMesh = mesh;
-                    this.moveToStar(mesh);
-                }
-            }
-        };
-    }
-    
-    moveToStar(star) {
-        const targetPosition = star.position.clone();
-        const radius = star.scaling.x;
-        const distance = 2.5 * radius;
-        
-        // Animation to move and rotate camera
-        const Alpha = this.camera.alpha;
-        const Beta = this.camera.beta;
-        const Radius = this.camera.radius;
-        
-        BABYLON.Animation.CreateAndStartAnimation(
-            "cameraMove",
-            this.camera,
-            "position",
-            60,
-            120,
-            this.camera.position,
-            targetPosition,
-            BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
-        );
-    }
-    
-    updateHUD(star, distance) {
-        this.starName.textContent = `[ ${star.metadata.name} ]`;
-        this.starDistance.textContent = `${Math.round(distance * 10) / 10} AU`;
-        this.starName.style.color = '#00fff7';
-        this.starDistance.style.color = '#00fff7';
-        
-        // Update preview canvas
-        // TODO: Add star preview rendering
-    }
-    
-    clearHUD() {
-        this.starName.textContent = '[ NO TARGET ]';
-        this.starDistance.textContent = '---';
-        this.starName.style.color = '#445566';
-        this.starDistance.style.color = '#445566';
-        
-        // Clear preview canvas
-        const ctx = this.hudPreview.getContext('2d');
-        ctx.clearRect(0, 0, this.hudPreview.width, this.hudPreview.height);
-    }
-    
-    randomGalacticPosition() {
-        const galaxyRadius = 220;
-        const ySpread = 80;
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.acos(2 * Math.random() - 1);
-        const r = galaxyRadius * Math.pow(Math.random(), 0.5);
-        return new BABYLON.Vector3(
-            r * Math.sin(phi) * Math.cos(theta),
-            (Math.random() - 0.5) * ySpread,
-            r * Math.sin(phi) * Math.sin(theta)
-        );
-    }
-    
-    randomStarColor() {
-        const h = Math.random();
-        const s = 0.7 + 0.3 * Math.random();
-        const l = 0.5 + 0.2 * (Math.random() - 0.5);
-        return BABYLON.Color3.FromHSL(h, s, l).toHexString();
-    }
-    
-    generateStarName() {
-        const syllables = [
-            'Al', 'Be', 'Ce', 'De', 'El', 'Fi', 'Ga', 'Ha', 'Io', 'Ju',
-            'Ka', 'Lu', 'Me', 'No', 'Or', 'Pa', 'Qu', 'Ra', 'Si', 'Tu',
-            'Ur', 'Ve', 'Wi', 'Xa', 'Yo', 'Za'
-        ];
-        const len = 2 + Math.floor(Math.random() * 2);
-        let name = '';
-        for (let i = 0; i < len; i++) {
-            name += syllables[Math.floor(Math.random() * syllables.length)];
-        }
-        name += '-' + Math.floor(Math.random() * 10000);
-        return name;
     }
 }
 
