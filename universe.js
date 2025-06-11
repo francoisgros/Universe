@@ -1,4 +1,6 @@
 import { StarMaterial } from './shaders/starMaterial.js';
+import { StarHUD } from './StarHUD.js';
+import { StarInteraction } from './StarInteraction.js';
 
 class UniverseScene {
     constructor(canvasId) {
@@ -6,10 +8,14 @@ class UniverseScene {
         this.engine = new BABYLON.Engine(this.canvas, true);
         this.scene = this.createScene();
         
-        // HUD elements
-        this.hudPreview = document.querySelector('.star-preview');
-        this.starName = document.querySelector('.star-name');
-        this.starDistance = document.querySelector('.star-distance');
+        // Initialize star HUD and interaction
+        this.starHUD = new StarHUD(this.scene, this.camera);
+        this.starInteraction = new StarInteraction(this.scene, this.camera, {
+            maxSpeed: 25,
+            acceleration: 10,
+            decelDistance: 20,
+            minDistance: 0.5
+        });
         
         // Start rendering loop
         this.engine.runRenderLoop(() => {
@@ -70,22 +76,15 @@ class UniverseScene {
     }
     
     generateStars(scene) {
-        const starCount = 10000;
-        for (let i = 0; i < starCount; i++) {
-            const star = this.createStar(scene);
-            const pos = this.randomGalacticPosition();
-            star.position = pos;
-            star.scaling = new BABYLON.Vector3(
-                0.05 + Math.random() * 0.12,
-                0.05 + Math.random() * 0.12,
-                0.05 + Math.random() * 0.12
-            );
-        }
+        const starFactory = new StarFactory(scene);
+        const stars = starFactory.generateGalaxy(10000);
+        starFactory.adjustPositionsByGravity(stars);
     }
     
     createStar(scene) {
+        const starName = this.generateStarName();
         const sphere = BABYLON.MeshBuilder.CreateSphere(
-            "star",
+            starName,
             { segments: 32, diameter: 1 },
             scene
         );
@@ -102,7 +101,10 @@ class UniverseScene {
         
         sphere.material = material;
         sphere.metadata = {
-            name: this.generateStarName()
+            name: starName,
+            type: 'star',
+            colorSpeed: material.colorSpeed,
+            pattern: material.pattern
         };
         
         return sphere;
