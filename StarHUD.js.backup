@@ -1,0 +1,176 @@
+export class StarHUD {
+    constructor(scene, camera, keyboardNavigation) {
+        this.scene = scene;
+        this.camera = camera;
+        this.keyboardNavigation = keyboardNavigation; // Reference to check FPV mode
+        this.currentStar = null;
+        this.isVisible = true; // HUD visible by default
+        
+        // Get HUD elements from DOM
+        this.hudContainer = document.getElementById('hud'); // Correct HUD container
+        this.hudPreview = document.querySelector('.star-preview');
+        this.labelElement = document.querySelector('.star-name');
+        this.distanceElement = document.querySelector('.star-distance');
+        
+        // Setup toggle key for HUD visibility
+        this.setupToggleKey();
+        
+        if (this.hudPreview) {
+            // Use CSS-based preview instead of second Babylon.js engine to avoid runtime conflicts
+            console.log('StarHUD: Using CSS-based preview to avoid engine conflicts');
+            this.hudPreview.style.background = 'radial-gradient(circle, #ffaa00 0%, #ff6600 50%, transparent 100%)';
+            this.hudPreview.style.borderRadius = '50%';
+            this.hudPreview.style.animation = 'starPulse 2s ease-in-out infinite alternate';
+            
+            // Add CSS animation if not already present
+            if (!document.getElementById('starHudStyles')) {
+                const style = document.createElement('style');
+                style.id = 'starHudStyles';
+                style.textContent = `
+                    @keyframes starPulse {
+                        0% { opacity: 0.7; transform: scale(0.9); }
+                        100% { opacity: 1.0; transform: scale(1.1); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+        
+        // Handle picking - only when not in FPV mode (crosshair mode)
+        scene.onPointerMove = (evt) => {
+            // Only detect stars when not in FPV mode (mouse acts as crosshair)
+            if (this.keyboardNavigation && this.keyboardNavigation.fpvMode) {
+                return; // Skip star detection in FPV mode
+            }
+            
+            // Only process if HUD is visible
+            if (!this.isVisible) {
+                return;
+            }
+            
+            const pickInfo = scene.pick(scene.pointerX, scene.pointerY);
+            console.log('StarHUD: Pick info:', pickInfo);
+            console.log('StarHUD: Pick info hit:', pickInfo?.hit);
+            console.log('StarHUD: Pick info pickedMesh:', pickInfo?.pickedMesh);
+            console.log('StarHUD: Pick info pickedMesh name:', pickInfo?.pickedMesh?.name);
+            
+            if (pickInfo && pickInfo.hit && pickInfo.pickedMesh) {
+                console.log('StarHUD: Mesh metadata:', pickInfo.pickedMesh.metadata);
+                console.log('StarHUD: Thin instance count:', pickInfo.pickedMesh.thinInstanceCount);
+                console.log('StarHUD: Instance ID:', pickInfo.instanceId);
+                console.log('StarHUD: Thin Instance Index:', pickInfo.thinInstanceIndex);
+                
+                const instanceIdx = pickInfo.thinInstanceIndex;
+                
+                if (instanceIdx >= 0 && pickInfo.pickedMesh.metadata &&
+                    pickInfo.pickedMesh.metadata.stars &&
+                    pickInfo.pickedMesh.metadata.stars[instanceIdx]) {
+                    
+                    const starData = pickInfo.pickedMesh.metadata.stars[instanceIdx];
+                    console.log('StarHUD: Star detected:', starData.name);
+                    if (this.currentStar !== starData) {
+                        this.currentStar = starData;
+                        this.updateInfoPanel(starData, pickInfo.distance);
+                    }
+                } else {
+                    this.clearInfoPanel();
+                }
+            } else {
+                this.clearInfoPanel();
+            }
+        };
+    }
+    
+    setupToggleKey() {
+        window.addEventListener('keydown', (event) => {
+            if (event.code === 'KeyP') {
+                this.toggleVisibility();
+                event.preventDefault();
+            }
+        });
+    }
+    
+    toggleVisibility() {
+        this.isVisible = !this.isVisible;
+        if (this.hudContainer) {
+            this.hudContainer.style.display = this.isVisible ? 'block' : 'none';
+        }
+        console.log('StarHUD: Visibility toggled -', this.isVisible ? 'ON' : 'OFF');
+    }
+    
+    show() {
+        this.isVisible = true;
+        if (this.hudContainer) {
+            this.hudContainer.style.display = 'block';
+        }
+    }
+    
+    hide() {
+        this.isVisible = false;
+        if (this.hudContainer) {
+            this.hudContainer.style.display = 'none';
+        }
+    }
+
+    updateInfoPanel(starData, distance) {
+        if (!this.isVisible) return; // Don't update if HUD is hidden
+        
+        if (!starData) {
+            this.clearInfoPanel();
+            return;
+        }
+
+        // Update name and distance
+        this.labelElement.textContent = `[ ${starData.name} ]`;
+        this.distanceElement.textContent = `${Math.round(distance * 10) / 10} AU`;
+        this.labelElement.style.color = '#00fff7';
+        this.distanceElement.style.color = '#00fff7';
+
+        // Update CSS-based preview with star colors
+        if (this.hudPreview && starData.colors && starData.colors.length > 0) {
+            const color1 = starData.colors[0];
+            const color2 = starData.colors[1] || color1;
+            
+            // Convert BABYLON.Color3 to CSS color
+            const toHex = (color) => {
+                if (color.r !== undefined) {
+                    const r = Math.round(color.r * 255).toString(16).padStart(2, '0');
+                    const g = Math.round(color.g * 255).toString(16).padStart(2, '0');
+                    const b = Math.round(color.b * 255).toString(16).padStart(2, '0');
+                    return `#${r}${g}${b}`;
+                }
+                return color;
+            };
+            
+            const hex1 = toHex(color1);
+            const hex2 = toHex(color2);
+            
+            this.hudPreview.style.background = `radial-gradient(circle, ${hex1} 0%, ${hex2} 50%, transparent 100%)`;
+        }
+    }
+
+    clearInfoPanel() {
+        this.currentStar = null;
+        this.labelElement.textContent = '[ NO TARGET ]';
+        this.distanceElement.textContent = '---';
+        this.labelElement.style.color = '#445566';
+        this.distanceElement.style.color = '#445566';
+    }
+
+    dispose() {
+        console.log('StarHUD: Disposing resources');
+        
+        // Clear references - no Babylon.js resources to dispose anymore
+        this.currentStar = null;
+        this.scene = null;
+        this.camera = null;
+        
+        // Reset preview to default state
+        if (this.hudPreview) {
+            this.hudPreview.style.background = '';
+            this.hudPreview.style.animation = '';
+        }
+        
+        console.log('StarHUD: Resources disposed successfully');
+    }
+}

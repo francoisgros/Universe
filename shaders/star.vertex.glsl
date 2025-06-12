@@ -3,18 +3,28 @@ precision highp float;
 // Attributes
 attribute vec3 position;
 attribute vec2 uv;
-attribute vec3 normal;
+
+#ifdef INSTANCES
+attribute mat4 world;
+#else
+uniform mat4 world;
+#endif
 
 // Uniforms
-uniform mat4 world;
-uniform mat4 worldViewProjection;
+uniform mat4 viewProjection;
 
 // Varying
 varying vec2 vUv;
-varying vec3 vNormal;
+varying float vInstanceId;
 
 void main() {
+    mat4 finalWorld = world;
+    
+    vec4 worldPos = finalWorld * vec4(position, 1.0);
+    gl_Position = viewProjection * worldPos;
+    
     vUv = uv;
-    vNormal = (world * vec4(normal, 0.0)).xyz;
-    gl_Position = worldViewProjection * vec4(position, 1.0);
+    
+    // Simple instance ID based on world position
+    vInstanceId = worldPos.x + worldPos.y * 100.0 + worldPos.z * 10000.0;
 }

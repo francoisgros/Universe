@@ -5,69 +5,33 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        html, body {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background-color: #000;
-        }
-        #renderCanvas {
-            width: 100%;
-            height: 100%;
-            touch-action: none;
-        }
-        #hud {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 300px;
-            height: 180px;
-            background: rgba(0, 0, 51, 0.85);
-            border: 1px solid #00fff7;
-            border-radius: 5px;
-            color: #00fff7;
-            font-family: 'Orbitron', sans-serif;
-            padding: 10px;
-            display: flex;
-            pointer-events: none;
-        }
-        .star-preview {
-            width: 100px;
-            height: 100px;
-            margin-right: 10px;
-        }
-        .star-info {
-            flex: 1;
-        }
-        .star-name {
-            font-size: 18px;
-            margin-bottom: 10px;
-        }
-        .star-distance {
-            font-size: 14px;
-            color: #445566;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <canvas id="renderCanvas"></canvas>
-    <div id="hud">
-        <canvas class="star-preview"></canvas>
-        <div class="star-info">
-            <div class="star-name">[ NO TARGET ]</div>
-            <div class="star-distance">---</div>
-        </div>
-    </div>
     
     <!-- Babylon.js -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     
+    <!-- Runtime Error Suppressor - Load first to catch all errors -->
+    <script src="runtime-error-suppressor.js"></script>
+    
     <!-- Application -->
-    <script type="module" src="universe.js"></script>
+    <script type="module" src="main.js"></script>
+    
+    <!-- Loading indicator -->
+    <div id="loadingScreen">
+        <div class="loading-text">Loading Universe</div>
+        <div class="spinner-container">
+            <div class="spinner">
+                <div class="spinner-ring"></div>
+                <div class="spinner-ring"></div>
+                <div class="spinner-ring"></div>
+            </div>
+            <div class="progress-text" id="progressText">Initializing star systems...</div>
+        </div>
+    </div>
 </body>
 </html>

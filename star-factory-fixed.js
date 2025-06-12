@@ -8,69 +8,76 @@ export class StarFactory {
         
         console.log('StarFactory: Creating star mesh template');
         this.starMesh = BABYLON.MeshBuilder.CreateSphere("starTemplate", {
-            segments: 16,
-            diameter: 1
+            segments: 6, // Minimal for best performance
+            diameter: 20.0 // Extremely large for guaranteed visibility
         }, scene);
         
         this.starMesh.setEnabled(false);
         
-        // Initialize asynchronously
-        console.log('StarFactory: Starting async initialization');
+        // Initialize asynchronously with beautiful shader material
+        console.log('StarFactory: Starting async initialization with StarMaterial');
         this.initPromise = this.initialize().catch(error => {
             console.error('StarFactory: Initialization failed in constructor:', error);
             this.ready = false;
+            // Fallback to standard material
+            this.initializeFallback();
             throw error;
         });
     }
 
     async initialize() {
         try {
-            console.log('StarFactory: Creating StarMaterial instance');
-            this.starMaterial = new StarMaterial(this.scene, {
-                name: "StarMaterial",
-                colors: ['#ffaa00', '#ffff00', '#ffffff'],
+            console.log('StarFactory: Initializing with custom plasma shader material');
+            
+            // Create the custom star material with plasma effects
+            this.starMaterialInstance = new StarMaterial(this.scene, {
+                name: "PlasmaStarMaterial",
+                colors: ['#ff3300', '#ff9900', '#ffff00'], // Default colors, will be procedural
                 colorSpeed: 1.0
             });
             
-            console.log('StarFactory: Initializing StarMaterial');
-            const material = await this.starMaterial.initialize();
+            // Initialize the material
+            this.starMaterial = await this.starMaterialInstance.initialize();
             
-            console.log('StarFactory: Checking material readiness');
-            if (!material) {
-                throw new Error('Material is null after initialization');
-            }
-            
-            const isReady = material.isReady();
-            console.log('StarFactory: Material ready state:', isReady);
-            
-            if (!isReady) {
-                throw new Error('Material not ready after initialization');
-            }
-            
-            this.starMesh.material = material;
-            
-            // Initialize instance buffers with proper typed arrays
-            const maxInstances = 10000;
-            const bufferMatrices = new Float32Array(maxInstances * 16);
-            const bufferColors = new Float32Array(maxInstances * 12); // 4 components * 3 colors
-            const bufferParams = new Float32Array(maxInstances);
-
-            // Register instance attributes with proper types and components
-            this.starMesh.thinInstanceRegisterAttribute("color1", 4);
-            this.starMesh.thinInstanceRegisterAttribute("color2", 4);
-            this.starMesh.thinInstanceRegisterAttribute("color3", 4);
-            this.starMesh.thinInstanceRegisterAttribute("colorParams", 1);
-
-            this.matrices = bufferMatrices;
-            this.colors = bufferColors;
-            this.params = bufferParams;
-            this.nbInstances = 0;
-            this.maxInstances = maxInstances;
-            
+            // Apply the material to the mesh
+            this.starMesh.material = this.starMaterial;
             this.starMesh.setEnabled(true);
             this.ready = true;
+            
+            console.log('StarFactory: Custom plasma shader material initialization complete');
         } catch (error) {
-            console.error('StarFactory initialization failed:', error);
+            console.error('StarFactory: Custom shader initialization failed, falling back to standard material:', error);
+            this.initializeFallback();
+        }
+    }
+
+    initializeFallback() {
+        try {
+            console.log('StarFactory: Creating enhanced standard material with beautiful effects');
+            
+            // Enhanced standard material with beautiful visual effects
+            this.starMaterial = new BABYLON.StandardMaterial("StarMaterialEnhanced", this.scene);
+            
+            // Beautiful glowing star appearance
+            this.starMaterial.emissiveColor = new BABYLON.Color3(1.0, 0.9, 0.3); // Bright golden glow
+            this.starMaterial.diffuseColor = new BABYLON.Color3(1.0, 0.8, 0.4); // Warm golden
+            this.starMaterial.specularColor = new BABYLON.Color3(1.0, 1.0, 0.8); // Bright specular
+            this.starMaterial.specularPower = 32; // Sharp highlights
+            
+            // Enable transparency for glow effects
+            this.starMaterial.alpha = 0.9;
+            this.starMaterial.alphaMode = BABYLON.Engine.ALPHA_COMBINE;
+            
+            // Disable backface culling for better visibility
+            this.starMaterial.backFaceCulling = false;
+            
+            this.starMesh.material = this.starMaterial;
+            this.starMesh.setEnabled(true);
+            this.ready = true;
+            
+            console.log('StarFactory: Enhanced standard material initialization complete');
+        } catch (error) {
+            console.error('StarFactory enhanced material initialization failed:', error);
             this.ready = false;
             throw error;
         }
@@ -132,7 +139,7 @@ export class StarFactory {
         return name;
     }
 
-    async generateGalaxy(count = 10000) {
+    async generateGalaxy(count = 500) { // Much reduced count for better performance and visibility
         console.log('StarFactory: Waiting for initialization before galaxy generation');
         try {
             await this.initPromise; // Wait for initialization to complete
@@ -146,7 +153,7 @@ export class StarFactory {
         }
 
         const progressText = document.getElementById('progressText');
-        const batchSize = 1000;
+        const batchSize = 300; // Smaller batches for custom shaders
         let progress = 0;
 
         const matrices = [];
@@ -155,6 +162,8 @@ export class StarFactory {
         const colors3 = [];
         const colorParams = [];
         const stars = [];
+
+        console.log(`StarFactory: Generating ${count} stars with beautiful custom shaders...`);
 
         for (let i = 0; i < count; i += batchSize) {
             const currentBatch = Math.min(batchSize, count - i);
@@ -165,8 +174,15 @@ export class StarFactory {
             }
 
             for (let j = 0; j < currentBatch; j++) {
-                const position = this.generateStarPosition();
-                const scale = 0.5 + Math.random() * 1.0;
+                // IMPROVED: Better spatial distribution with more spacing
+                const position = this.generateStarPosition({
+                    galaxyRadius: 200, // Larger galaxy for better distribution
+                    ySpread: 40,       // More vertical spread
+                    minDist: 12        // More spacing between stars for airy feel
+                });
+                
+                // Much larger star sizes for visibility
+                const scale = 3.0 + Math.random() * 4.0; // Larger scale range for visibility
                 
                 const matrix = BABYLON.Matrix.Compose(
                     new BABYLON.Vector3(scale, scale, scale),
@@ -174,10 +190,11 @@ export class StarFactory {
                     position
                 );
 
+                // Generate beautiful color variations with HSV
                 const baseColor = this.randomColor();
-                const pulseColor = baseColor.add(new BABYLON.Color3(0.2, 0.2, 0.1));
-                const glowColor = baseColor.add(new BABYLON.Color3(0.3, 0.3, 0.2));
-                const colorSpeed = 0.5 + Math.random() * 1.5;
+                const pulseColor = this.randomColor(); // Different color for pulsing
+                const glowColor = this.randomColor();  // Different color for glow
+                const colorSpeed = 0.3 + Math.random() * 1.2; // Varied animation speed
 
                 matrices.push(matrix);
                 colors1.push(new BABYLON.Vector4(baseColor.r, baseColor.g, baseColor.b, 1));
@@ -189,17 +206,22 @@ export class StarFactory {
                     name: this.generateStarName(),
                     position: position,
                     scale: scale,
+                    size: scale, // Add size property for interaction
                     colors: [baseColor, pulseColor, glowColor],
-                    colorSpeed: colorSpeed
+                    colorSpeed: colorSpeed,
+                    color: baseColor // Primary color for compatibility
                 });
             }
 
+            // Yield control to prevent blocking
             await new Promise(resolve => setTimeout(resolve, 0));
         }
 
         if (progressText) {
             progressText.textContent = 'Finalizing star systems...';
         }
+
+        console.log(`StarFactory: Converting ${matrices.length} matrices and colors to buffers`);
 
         // Convert matrices to typed array for better performance
         const matrixArray = new Float32Array(matrices.length * 16);
@@ -208,19 +230,28 @@ export class StarFactory {
             matrixArray.set(arr, idx * 16);
         });
 
-        // Set instance data efficiently
+        // FIXED: Use procedural colors in shaders - no custom vertex attributes needed
+        console.log('StarFactory: Setting up matrix buffer for procedural shader rendering');
+        
+        // Set up the matrix buffer for thin instances
         this.starMesh.thinInstanceSetBuffer("matrix", matrixArray, 16);
-        this.starMesh.thinInstanceSetBuffer("color1", this._flattenColors(colors1), 4);
-        this.starMesh.thinInstanceSetBuffer("color2", this._flattenColors(colors2), 4);
-        this.starMesh.thinInstanceSetBuffer("color3", this._flattenColors(colors3), 4);
-        this.starMesh.thinInstanceSetBuffer("colorParams", new Float32Array(colorParams), 1);
+        
+        // IMPORTANT: Enable picking for thin instances
+        console.log('StarFactory: Enabling thin instance picking');
+        this.starMesh.thinInstanceEnablePicking = true;
 
+        // IMPORTANT: Store star metadata for cursor detection
+        console.log('StarFactory: Storing star metadata for cursor detection');
+        this.starMesh.metadata = { stars: stars };
+
+        console.log('StarFactory: Enabling star mesh');
         this.starMesh.setEnabled(true);
         
         console.log(`StarFactory: Galaxy generation complete - ${stars.length} stars created`);
         console.log('StarFactory: First few stars:', stars.slice(0, 3));
         console.log('StarFactory: Star mesh enabled:', this.starMesh.isEnabled());
         console.log('StarFactory: Star mesh instances:', this.starMesh.thinInstanceCount);
+        console.log('StarFactory: Star metadata attached:', !!this.starMesh.metadata);
         
         return stars;
     }
